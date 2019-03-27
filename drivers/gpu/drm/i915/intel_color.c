@@ -273,6 +273,14 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 				    ilk_csc_coeff_limited_range,
 				    ilk_csc_postoff_limited_range);
 	} else if (crtc_state->csc_enable) {
+		/*
+		 * On GLK+ both pipe CSC and degamma LUT are controlled
+		 * by csc_enable. Hence for the cases where the degama
+		 * LUT is needed but CSC is not we need to load an
+		 * identity matrix.
+		 */
+		WARN_ON(!IS_CANNONLAKE(dev_priv) && !IS_GEMINILAKE(dev_priv));
+
 		ilk_update_pipe_csc(crtc, ilk_csc_off_zero,
 				    ilk_csc_coeff_identity,
 				    ilk_csc_off_zero);
@@ -559,6 +567,7 @@ static void glk_load_degamma_lut(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	const u32 lut_size = INTEL_INFO(dev_priv)->color.degamma_lut_size;
+	const struct drm_color_lut *lut = crtc_state->base.degamma_lut->data;
 	u32 i;
 
 	/*
@@ -569,42 +578,69 @@ static void glk_load_degamma_lut(const struct intel_crtc_state *crtc_state)
 	I915_WRITE(PRE_CSC_GAMC_INDEX(pipe), 0);
 	I915_WRITE(PRE_CSC_GAMC_INDEX(pipe), PRE_CSC_GAMC_AUTO_INCREMENT);
 
-	if (crtc_state->base.degamma_lut) {
-		struct drm_color_lut *lut = crtc_state->base.degamma_lut->data;
-
-		for (i = 0; i < lut_size; i++) {
-			/*
-			 * First 33 entries represent range from 0 to 1.0
-			 * 34th and 35th entry will represent extended range
-			 * inputs 3.0 and 7.0 respectively, currently clamped
-			 * at 1.0. Since the precision is 16bit, the user
-			 * value can be directly filled to register.
-			 * The pipe degamma table in GLK+ onwards doesn't
-			 * support different values per channel, so this just
-			 * programs green value which will be equal to Red and
-			 * Blue into the lut registers.
-			 * ToDo: Extend to max 7.0. Enable 32 bit input value
-			 * as compared to just 16 to achieve this.
-			 */
-			I915_WRITE(PRE_CSC_GAMC_DATA(pipe), lut[i].green);
-		}
-	} else {
-		/* load a linear table. */
-		for (i = 0; i < lut_size; i++) {
-			u32 v = (i * (1 << 16)) / (lut_size - 1);
-
-			I915_WRITE(PRE_CSC_GAMC_DATA(pipe), v);
-		}
+	for (i = 0; i < lut_size; i++) {
+		/*
+		 * First 33 entries represent range from 0 to 1.0
+		 * 34th and 35th entry will represent extended range
+		 * inputs 3.0 and 7.0 respectively, currently clamped
+		 * at 1.0. Since the precision is 16bit, the user
+		 * value can be directly filled to register.
+		 * The pipe degamma table in GLK+ onwards doesn't
+		 * support different values per channel, so this just
+		 * programs green value which will be equal to Red and
+		 * Blue into the lut registers.
+		 * ToDo: Extend to max 7.0. Enable 32 bit input value
+		 * as compared to just 16 to achieve this.
+		 */
+		I915_WRITE(PRE_CSC_GAMC_DATA(pipe), lut[i].green);
 	}
 
 	/* Clamp values > 1.0. */
 	while (i++ < 35)
-		I915_WRITE(PRE_CSC_GAMC_DATA(pipe), (1 << 16));
+		I915_WRITE(PRE_CSC_GAMC_DATA(pipe), 1 << 16);
+}
+
+static void glk_load_degamma_lut_linear(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	const u32 lut_size = INTEL_INFO(dev_priv)->color.degamma_lut_size;
+	u32 i;
+
+	/*
+	 * When setting the auto-increment bit, the hardware seems to
+	 * ignore the index bits, so we need to reset it to index 0
+	 * separately.
+	 */
+	I915_WRITE(PRE_CSC_GAMC_INDEX(pipe), 0);
+	I915_WRITE(PRE_CSC_GAMC_INDEX(pipe), PRE_CSC_GAMC_AUTO_INCREMENT);
+
+	for (i = 0; i < lut_size; i++) {
+		u32 v = (i << 16) / (lut_size - 1);
+
+		I915_WRITE(PRE_CSC_GAMC_DATA(pipe), v);
+	}
+
+	/* Clamp values > 1.0. */
+	while (i++ < 35)
+		I915_WRITE(PRE_CSC_GAMC_DATA(pipe), 1 << 16);
 }
 
 static void glk_load_luts(const struct intel_crtc_state *crtc_state)
 {
-	glk_load_degamma_lut(crtc_state);
+	/*
+	 * On GLK+ both pipe CSC and degamma LUT are controlled
+	 * by csc_enable. Hence for the cases where the CSC is
+	 * needed but degamma LUT is not we need to load a
+	 * linear degamma LUT. In fact we'll just always load
+	 * the degama LUT so that we don't have to reload
+	 * it every time the pipe CSC is being enabled.
+	 */
+	if (crtc_state->base.degamma_lut)
+		glk_load_degamma_lut(crtc_state);
+	else
+		glk_load_degamma_lut_linear(crtc_state);
 
 	if (crtc_state_is_legacy_gamma(crtc_state))
 		i9xx_load_luts(crtc_state);
@@ -614,7 +650,8 @@ static void glk_load_luts(const struct intel_crtc_state *crtc_state)
 
 static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 {
-	glk_load_degamma_lut(crtc_state);
+	if (crtc_state->base.degamma_lut)
+		glk_load_degamma_lut(crtc_state);
 
 	if (crtc_state_is_legacy_gamma(crtc_state))
 		i9xx_load_luts(crtc_state);
