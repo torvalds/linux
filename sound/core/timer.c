@@ -366,7 +366,7 @@ static int snd_timer_close_locked(struct snd_timer_instance *timeri)
 		timer->num_instances--;
 		/* wait, until the active callback is finished */
 		spin_lock_irq(&timer->lock);
-		while (timeri->flags & SNDRV_TIMER_IFLG_CALLBACK) {
+		while (!list_empty(&timeri->ack_list)) {
 			spin_unlock_irq(&timer->lock);
 			udelay(10);
 			spin_lock_irq(&timer->lock);
@@ -731,19 +731,17 @@ static void snd_timer_process_callbacks(struct snd_timer *timer,
 		ti = list_first_entry(head, struct snd_timer_instance,
 				      ack_list);
 
-		/* remove from ack_list and make empty */
-		list_del_init(&ti->ack_list);
-
 		ticks = ti->pticks;
 		ti->pticks = 0;
 		resolution = ti->resolution;
 
-		ti->flags |= SNDRV_TIMER_IFLG_CALLBACK;
 		spin_unlock(&timer->lock);
 		if (ti->callback)
 			ti->callback(ti, resolution, ticks);
 		spin_lock(&timer->lock);
-		ti->flags &= ~SNDRV_TIMER_IFLG_CALLBACK;
+
+		/* remove from ack_list and make empty */
+		list_del_init(&ti->ack_list);
 	}
 }
 

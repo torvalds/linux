@@ -43,7 +43,6 @@
 #define SNDRV_TIMER_IFLG_START	  0x00000004
 #define SNDRV_TIMER_IFLG_AUTO	  0x00000008	/* auto restart */
 #define SNDRV_TIMER_IFLG_FAST	  0x00000010	/* fast callback (do not use tasklet) */
-#define SNDRV_TIMER_IFLG_CALLBACK 0x00000020	/* timer callback is active */
 #define SNDRV_TIMER_IFLG_EXCLUSIVE 0x00000040	/* exclusive owner - no more instances */
 #define SNDRV_TIMER_IFLG_EARLY_EVENT 0x00000080	/* write early event to the poll queue */
 
