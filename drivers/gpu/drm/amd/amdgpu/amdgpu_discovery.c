@@ -266,7 +266,6 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 	uint16_t num_ips;
 	uint8_t num_base_address;
 	int hw_ip;
-	int hw_id;
 	int i, j, k;
 
 	if (!adev->discovery) {
@@ -279,40 +278,54 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 			le16_to_cpu(bhdr->table_list[IP_DISCOVERY].offset));
 	num_dies = le16_to_cpu(ihdr->num_dies);
 
-	for (hw_ip = 0; hw_ip < MAX_HWIP; hw_ip++) {
-		hw_id = hw_id_map[hw_ip];
+	DRM_DEBUG("number of dies: %d\n", num_dies);
 
-		for (i = 0; i < num_dies; i++) {
-			die_offset = le16_to_cpu(ihdr->die_info[i].die_offset);
-			dhdr = (struct die_header *)(adev->discovery + die_offset);
-			num_ips = le16_to_cpu(dhdr->num_ips);
-			ip_offset = die_offset + sizeof(*dhdr);
+	for (i = 0; i < num_dies; i++) {
+		die_offset = le16_to_cpu(ihdr->die_info[i].die_offset);
+		dhdr = (struct die_header *)(adev->discovery + die_offset);
+		num_ips = le16_to_cpu(dhdr->num_ips);
+		ip_offset = die_offset + sizeof(*dhdr);
 
-			for (j = 0; j < num_ips; j++) {
-				ip = (struct ip *)(adev->discovery + ip_offset);
-				num_base_address = ip->num_base_address;
+		if (le16_to_cpu(dhdr->die_id) != i) {
+			DRM_ERROR("invalid die id %d, expected %d\n",
+					le16_to_cpu(dhdr->die_id), i);
+			return -EINVAL;
+		}
 
-				if (le16_to_cpu(ip->hw_id) == hw_id) {
-					DRM_DEBUG("%s(%d) v%d.%d.%d:\n",
-						  hw_id_names[hw_id], hw_id,
-						  ip->major, ip->minor,
-						  ip->revision);
+		DRM_DEBUG("number of hardware IPs on die%d: %d\n",
+				le16_to_cpu(dhdr->die_id), num_ips);
 
-					for (k = 0; k < num_base_address; k++) {
-						/*
-						 * convert the endianness of base addresses in place,
-						 * so that we don't need to convert them when accessing adev->reg_offset.
-						 */
-						ip->base_address[k] = le32_to_cpu(ip->base_address[k]);
-						DRM_DEBUG("\t0x%08x\n", ip->base_address[k]);
-					}
+		for (j = 0; j < num_ips; j++) {
+			ip = (struct ip *)(adev->discovery + ip_offset);
+			num_base_address = ip->num_base_address;
 
+			DRM_DEBUG("%s(%d) #%d v%d.%d.%d:\n",
+				  hw_id_names[le16_to_cpu(ip->hw_id)],
+				  le16_to_cpu(ip->hw_id),
+				  ip->number_instance,
+				  ip->major, ip->minor,
+				  ip->revision);
+
+			for (k = 0; k < num_base_address; k++) {
+				/*
+				 * convert the endianness of base addresses in place,
+				 * so that we don't need to convert them when accessing adev->reg_offset.
+				 */
+				ip->base_address[k] = le32_to_cpu(ip->base_address[k]);
+				DRM_DEBUG("\t0x%08x\n", ip->base_address[k]);
+			}
+
+			for (hw_ip = 0; hw_ip < MAX_HWIP; hw_ip++) {
+				if (hw_id_map[hw_ip] == le16_to_cpu(ip->hw_id)) {
+					DRM_INFO("set register base offset for %s\n",
+							hw_id_names[le16_to_cpu(ip->hw_id)]);
 					adev->reg_offset[hw_ip][ip->number_instance] =
 						ip->base_address;
 				}
 
-				ip_offset += sizeof(*ip) + 4 * (ip->num_base_address - 1);
 			}
+
+			ip_offset += sizeof(*ip) + 4 * (ip->num_base_address - 1);
 		}
 	}
 
