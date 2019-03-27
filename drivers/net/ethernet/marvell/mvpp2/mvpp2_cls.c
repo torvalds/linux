@@ -912,12 +912,12 @@ static void mvpp2_rss_port_c2_disable(struct mvpp2_port *port)
 	mvpp2_cls_c2_write(port->priv, &c2);
 }
 
-void mvpp22_rss_enable(struct mvpp2_port *port)
+void mvpp22_port_rss_enable(struct mvpp2_port *port)
 {
 	mvpp2_rss_port_c2_enable(port);
 }
 
-void mvpp22_rss_disable(struct mvpp2_port *port)
+void mvpp22_port_rss_disable(struct mvpp2_port *port)
 {
 	mvpp2_rss_port_c2_disable(port);
 }
@@ -1047,7 +1047,7 @@ int mvpp2_ethtool_rxfh_get(struct mvpp2_port *port, struct ethtool_rxnfc *info)
 	return 0;
 }
 
-void mvpp22_rss_port_init(struct mvpp2_port *port)
+void mvpp22_port_rss_init(struct mvpp2_port *port)
 {
 	struct mvpp2 *priv = port->priv;
 	int i;

@@ -227,11 +227,10 @@ struct mvpp2_cls_lookup_entry {
 };
 
 void mvpp22_rss_fill_table(struct mvpp2_port *port, u32 table);
+void mvpp22_port_rss_init(struct mvpp2_port *port);
 
-void mvpp22_rss_port_init(struct mvpp2_port *port);
-
-void mvpp22_rss_enable(struct mvpp2_port *port);
-void mvpp22_rss_disable(struct mvpp2_port *port);
+void mvpp22_port_rss_enable(struct mvpp2_port *port);
+void mvpp22_port_rss_disable(struct mvpp2_port *port);
 
 int mvpp2_ethtool_rxfh_get(struct mvpp2_port *port, struct ethtool_rxnfc *info);
 int mvpp2_ethtool_rxfh_set(struct mvpp2_port *port, struct ethtool_rxnfc *info);
