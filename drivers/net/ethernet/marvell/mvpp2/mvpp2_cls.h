@@ -108,28 +108,14 @@ struct mvpp2_cls_c2_entry {
 };
 
 /* Classifier C2 engine entries */
-#define MVPP22_CLS_C2_RSS_ENTRY(port)	(port)
-#define MVPP22_CLS_C2_N_ENTRIES		MVPP2_MAX_PORTS
+#define MVPP22_CLS_C2_N_ENTRIES		256
 
-/* RSS flow entries in the flow table. We have 2 entries per port for RSS.
- *
- * The first performs a lookup using the C2 TCAM engine, to tag the
- * packet for software forwarding (needed for RSS), enable or disable RSS, and
- * assign the default rx queue.
- *
- * The second configures the hash generation, by specifying which fields of the
- * packet header are used to generate the hash, and specifies the relevant hash
- * engine to use.
- */
-#define MVPP22_RSS_FLOW_C2_OFFS		0
-#define MVPP22_RSS_FLOW_HASH_OFFS	1
-#define MVPP22_RSS_FLOW_SIZE		(MVPP22_RSS_FLOW_HASH_OFFS + 1)
+/* Number of per-port dedicated entries in the C2 TCAM */
+#define MVPP22_CLS_C2_PORT_RANGE	8
 
-#define MVPP22_RSS_FLOW_C2(port)	((port) * MVPP22_RSS_FLOW_SIZE + \
-					 MVPP22_RSS_FLOW_C2_OFFS)
-#define MVPP22_RSS_FLOW_HASH(port)	((port) * MVPP22_RSS_FLOW_SIZE + \
-					 MVPP22_RSS_FLOW_HASH_OFFS)
-#define MVPP22_RSS_FLOW_FIRST(port)	MVPP22_RSS_FLOW_C2(port)
+#define MVPP22_CLS_C2_PORT_FIRST(p)	(MVPP22_CLS_C2_N_ENTRIES - \
+					((p) * MVPP22_CLS_C2_PORT_RANGE))
+#define MVPP22_CLS_C2_RSS_ENTRY(p)	(MVPP22_CLS_C2_PORT_FIRST(p) - 1)
 
 /* Packet flow ID */
 enum mvpp2_prs_flow {
