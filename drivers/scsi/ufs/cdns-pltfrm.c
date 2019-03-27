@@ -17,7 +17,8 @@
 
 #include "ufshcd-pltfrm.h"
 
-#define CDNS_UFS_REG_HCLKDIV 0xFC
+#define CDNS_UFS_REG_HCLKDIV	0xFC
+#define CDNS_UFS_REG_PHY_XCFGD1	0x113C
 
 /**
  * Sets HCLKDIV register value based on the core_clk
@@ -77,10 +78,65 @@ static int cdns_ufs_setup_clocks(struct ufs_hba *hba, bool on,
 	return cdns_ufs_set_hclkdiv(hba);
 }
 
-static struct ufs_hba_variant_ops cdns_pltfm_hba_vops = {
+/**
+ * cdns_ufs_init - performs additional ufs initialization
+ * @hba: host controller instance
+ *
+ * Returns status of initialization
+ */
+static int cdns_ufs_init(struct ufs_hba *hba)
+{
+	int status = 0;
+
+	if (hba->vops && hba->vops->phy_initialization)
+		status = hba->vops->phy_initialization(hba);
+
+	return status;
+}
+
+/**
+ * cdns_ufs_m31_16nm_phy_initialization - performs m31 phy initialization
+ * @hba: host controller instance
+ *
+ * Always returns 0
+ */
+static int cdns_ufs_m31_16nm_phy_initialization(struct ufs_hba *hba)
+{
+	u32 data;
+
+	/* Increase RX_Advanced_Min_ActivateTime_Capability */
+	data = ufshcd_readl(hba, CDNS_UFS_REG_PHY_XCFGD1);
+	data |= BIT(24);
+	ufshcd_writel(hba, data, CDNS_UFS_REG_PHY_XCFGD1);
+
+	return 0;
+}
+
+static const struct ufs_hba_variant_ops cdns_ufs_pltfm_hba_vops = {
 	.name = "cdns-ufs-pltfm",
 	.setup_clocks = cdns_ufs_setup_clocks,
 };
+
+static const struct ufs_hba_variant_ops cdns_ufs_m31_16nm_pltfm_hba_vops = {
+	.name = "cdns-ufs-pltfm",
+	.init = cdns_ufs_init,
+	.setup_clocks = cdns_ufs_setup_clocks,
+	.phy_initialization = cdns_ufs_m31_16nm_phy_initialization,
+};
+
+static const struct of_device_id cdns_ufs_of_match[] = {
+	{
+		.compatible = "cdns,ufshc",
+		.data =  &cdns_ufs_pltfm_hba_vops,
+	},
+	{
+		.compatible = "cdns,ufshc-m31-16nm",
+		.data =  &cdns_ufs_m31_16nm_pltfm_hba_vops,
+	},
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, cdns_ufs_of_match);
 
 /**
  * cdns_ufs_pltfrm_probe - probe routine of the driver
@@ -91,10 +147,15 @@ static struct ufs_hba_variant_ops cdns_pltfm_hba_vops = {
 static int cdns_ufs_pltfrm_probe(struct platform_device *pdev)
 {
 	int err;
+	const struct of_device_id *of_id;
+	struct ufs_hba_variant_ops *vops;
 	struct device *dev = &pdev->dev;
 
+	of_id = of_match_node(cdns_ufs_of_match, dev->of_node);
+	vops = (struct ufs_hba_variant_ops *)of_id->data;
+
 	/* Perform generic probe */
-	err = ufshcd_pltfrm_init(pdev, &cdns_pltfm_hba_vops);
+	err = ufshcd_pltfrm_init(pdev, vops);
 	if (err)
 		dev_err(dev, "ufshcd_pltfrm_init() failed %d\n", err);
 
@@ -114,13 +175,6 @@ static int cdns_ufs_pltfrm_remove(struct platform_device *pdev)
 	ufshcd_remove(hba);
 	return 0;
 }
-
-static const struct of_device_id cdns_ufs_of_match[] = {
-	{ .compatible = "cdns,ufshc" },
-	{},
-};
-
-MODULE_DEVICE_TABLE(of, cdns_ufs_of_match);
 
 static const struct dev_pm_ops cdns_ufs_dev_pm_ops = {
 	.suspend         = ufshcd_pltfrm_suspend,
