@@ -1492,13 +1492,14 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
  * amdgpu_vm_bo_update_mapping - update a mapping in the vm page table
  *
  * @adev: amdgpu_device pointer
- * @exclusive: fence we need to sync to
- * @pages_addr: DMA addresses to use for mapping
  * @vm: requested vm
+ * @direct: direct submission in a page fault
+ * @exclusive: fence we need to sync to
  * @start: start of mapped range
  * @last: last mapped entry
  * @flags: flags for the entries
  * @addr: addr to set the area to
+ * @pages_addr: DMA addresses to use for mapping
  * @fence: optional resulting fence
  *
  * Fill in the page table entries between @start and @last.
@@ -1507,11 +1508,11 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
  * 0 for success, -EINVAL for failure.
  */
 static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
+				       struct amdgpu_vm *vm, bool direct,
 				       struct dma_fence *exclusive,
-				       dma_addr_t *pages_addr,
-				       struct amdgpu_vm *vm,
 				       uint64_t start, uint64_t last,
 				       uint64_t flags, uint64_t addr,
+				       dma_addr_t *pages_addr,
 				       struct dma_fence **fence)
 {
 	struct amdgpu_vm_update_params params;
@@ -1521,6 +1522,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;
 	params.vm = vm;
+	params.direct = direct;
 	params.pages_addr = pages_addr;
 
 	/* sync to everything except eviction fences on unmapping */
@@ -1633,9 +1635,9 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		}
 
 		last = min((uint64_t)mapping->last, start + max_entries - 1);
-		r = amdgpu_vm_bo_update_mapping(adev, exclusive, dma_addr, vm,
+		r = amdgpu_vm_bo_update_mapping(adev, vm, false, exclusive,
 						start, last, flags, addr,
-						fence);
+						dma_addr, fence);
 		if (r)
 			return r;
 
@@ -1929,9 +1931,9 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 		    mapping->start < AMDGPU_GMC_HOLE_START)
 			init_pte_value = AMDGPU_PTE_DEFAULT_ATC;
 
-		r = amdgpu_vm_bo_update_mapping(adev, NULL, NULL, vm,
+		r = amdgpu_vm_bo_update_mapping(adev, vm, false, NULL,
 						mapping->start, mapping->last,
-						init_pte_value, 0, &f);
+						init_pte_value, 0, NULL, &f);
 		amdgpu_vm_free_mapping(adev, vm, mapping, f);
 		if (r) {
 			dma_fence_put(f);
