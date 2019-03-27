@@ -162,7 +162,7 @@ static const void __user *uverbs_request_next_ptr(struct uverbs_req_iter *iter,
 	const void __user *res = iter->cur;
 
 	if (iter->cur + len > iter->end)
-		return ERR_PTR(-ENOSPC);
+		return (void __force __user *)ERR_PTR(-ENOSPC);
 	iter->cur += len;
 	return res;
 }
