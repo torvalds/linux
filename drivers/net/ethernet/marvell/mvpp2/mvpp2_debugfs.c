@@ -58,7 +58,7 @@ DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_dec_hits);
 static int mvpp2_dbgfs_flow_type_show(struct seq_file *s, void *unused)
 {
 	struct mvpp2_dbgfs_flow_entry *entry = s->private;
-	struct mvpp2_cls_flow *f;
+	const struct mvpp2_cls_flow *f;
 	const char *flow_name;
 
 	f = mvpp2_cls_flow_get(entry->flow);
@@ -115,8 +115,8 @@ static const struct file_operations mvpp2_dbgfs_flow_type_fops = {
 
 static int mvpp2_dbgfs_flow_id_show(struct seq_file *s, void *unused)
 {
-	struct mvpp2_dbgfs_flow_entry *entry = s->private;
-	struct mvpp2_cls_flow *f;
+	const struct mvpp2_dbgfs_flow_entry *entry = s->private;
+	const struct mvpp2_cls_flow *f;
 
 	f = mvpp2_cls_flow_get(entry->flow);
 	if (!f)
@@ -134,7 +134,7 @@ static int mvpp2_dbgfs_port_flow_hash_opt_show(struct seq_file *s, void *unused)
 	struct mvpp2_dbgfs_port_flow_entry *entry = s->private;
 	struct mvpp2_port *port = entry->port;
 	struct mvpp2_cls_flow_entry fe;
-	struct mvpp2_cls_flow *f;
+	const struct mvpp2_cls_flow *f;
 	int flow_index;
 	u16 hash_opts;
 
@@ -181,7 +181,7 @@ static int mvpp2_dbgfs_port_flow_engine_show(struct seq_file *s, void *unused)
 	struct mvpp2_dbgfs_port_flow_entry *entry = s->private;
 	struct mvpp2_port *port = entry->port;
 	struct mvpp2_cls_flow_entry fe;
-	struct mvpp2_cls_flow *f;
+	const struct mvpp2_cls_flow *f;
 	int flow_index, engine;
 
 	f = mvpp2_cls_flow_get(entry->dbg_fe->flow);

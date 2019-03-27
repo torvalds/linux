@@ -22,7 +22,7 @@
 	}							\
 }
 
-static struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
+static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 	/* TCP over IPv4 flows, Not fragmented, no vlan tag */
 	MVPP2_DEF_FLOW(TCP_V4_FLOW, MVPP2_FL_IP4_TCP_NF_UNTAG,
 		       MVPP22_CLS_HEK_IP4_5T,
@@ -463,7 +463,7 @@ static void mvpp2_cls_flow_lu_type_set(struct mvpp2_cls_flow_entry *fe,
 
 /* Initialize the parser entry for the given flow */
 static void mvpp2_cls_flow_prs_init(struct mvpp2 *priv,
-				    struct mvpp2_cls_flow *flow)
+				    const struct mvpp2_cls_flow *flow)
 {
 	mvpp2_prs_add_flow(priv, flow->flow_id, flow->prs_ri.ri,
 			   flow->prs_ri.ri_mask);
@@ -471,7 +471,7 @@ static void mvpp2_cls_flow_prs_init(struct mvpp2 *priv,
 
 /* Initialize the Lookup Id table entry for the given flow */
 static void mvpp2_cls_flow_lkp_init(struct mvpp2 *priv,
-				    struct mvpp2_cls_flow *flow)
+				    const struct mvpp2_cls_flow *flow)
 {
 	struct mvpp2_cls_lookup_entry le;
 
@@ -493,7 +493,8 @@ static void mvpp2_cls_flow_lkp_init(struct mvpp2 *priv,
 }
 
 /* Initialize the flow table entries for the given flow */
-static void mvpp2_cls_flow_init(struct mvpp2 *priv, struct mvpp2_cls_flow *flow)
+static void mvpp2_cls_flow_init(struct mvpp2 *priv,
+				const struct mvpp2_cls_flow *flow)
 {
 	struct mvpp2_cls_flow_entry fe;
 	int i;
@@ -597,7 +598,7 @@ static int mvpp2_flow_set_hek_fields(struct mvpp2_cls_flow_entry *fe,
 	return 0;
 }
 
-struct mvpp2_cls_flow *mvpp2_cls_flow_get(int flow)
+const struct mvpp2_cls_flow *mvpp2_cls_flow_get(int flow)
 {
 	if (flow >= MVPP2_N_PRS_FLOWS)
 		return NULL;
@@ -619,8 +620,8 @@ struct mvpp2_cls_flow *mvpp2_cls_flow_get(int flow)
 static int mvpp2_port_rss_hash_opts_set(struct mvpp2_port *port, int flow_type,
 					u16 requested_opts)
 {
+	const struct mvpp2_cls_flow *flow;
 	struct mvpp2_cls_flow_entry fe;
-	struct mvpp2_cls_flow *flow;
 	int i, engine, flow_index;
 	u16 hash_opts;
 
@@ -708,8 +709,8 @@ u16 mvpp2_flow_get_hek_fields(struct mvpp2_cls_flow_entry *fe)
  */
 static u16 mvpp2_port_rss_hash_opts_get(struct mvpp2_port *port, int flow_type)
 {
+	const struct mvpp2_cls_flow *flow;
 	struct mvpp2_cls_flow_entry fe;
-	struct mvpp2_cls_flow *flow;
 	int i, flow_index;
 	u16 hash_opts = 0;
 
@@ -734,7 +735,7 @@ static u16 mvpp2_port_rss_hash_opts_get(struct mvpp2_port *port, int flow_type)
 
 static void mvpp2_cls_port_init_flows(struct mvpp2 *priv)
 {
-	struct mvpp2_cls_flow *flow;
+	const struct mvpp2_cls_flow *flow;
 	int i;
 
 	for (i = 0; i < MVPP2_N_PRS_FLOWS; i++) {

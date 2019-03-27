@@ -223,7 +223,7 @@ int mvpp2_cls_flow_eng_get(struct mvpp2_cls_flow_entry *fe);
 
 u16 mvpp2_flow_get_hek_fields(struct mvpp2_cls_flow_entry *fe);
 
-struct mvpp2_cls_flow *mvpp2_cls_flow_get(int flow);
+const struct mvpp2_cls_flow *mvpp2_cls_flow_get(int flow);
 
 u32 mvpp2_cls_flow_hits(struct mvpp2 *priv, int index);
 
