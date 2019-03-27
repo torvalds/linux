@@ -255,12 +255,12 @@ void rt2800mmio_autowake_tasklet(unsigned long data)
 }
 EXPORT_SYMBOL_GPL(rt2800mmio_autowake_tasklet);
 
-static bool rt2800mmio_fetch_txstatus(struct rt2x00_dev *rt2x00dev)
+static void rt2800mmio_fetch_txstatus(struct rt2x00_dev *rt2x00dev)
 {
 	u32 status;
-	bool more = false;
+	unsigned long flags;
 
-	/* FIXEME: rewrite this comment
+	/*
 	 * The TX_FIFO_STATUS interrupt needs special care. We should
 	 * read TX_STA_FIFO but we should do it immediately as otherwise
 	 * the register can overflow and we would lose status reports.
@@ -271,20 +271,21 @@ static bool rt2800mmio_fetch_txstatus(struct rt2x00_dev *rt2x00dev)
 	 * because we can schedule the tasklet multiple times (when the
 	 * interrupt fires again during tx status processing).
 	 *
-	 * txstatus tasklet is called with INT_SOURCE_CSR_TX_FIFO_STATUS
-	 * disabled so have only one producer and one consumer - we don't
-	 * need to lock the kfifo.
+	 * We also read statuses from tx status timeout timer, use
+	 * lock to prevent concurent writes to fifo.
 	 */
+
+	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+
 	while (!kfifo_is_full(&rt2x00dev->txstatus_fifo)) {
 		status = rt2x00mmio_register_read(rt2x00dev, TX_STA_FIFO);
 		if (!rt2x00_get_field32(status, TX_STA_FIFO_VALID))
 			break;
 
 		kfifo_put(&rt2x00dev->txstatus_fifo, status);
-		more = true;
 	}
 
-	return more;
+	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
 }
 
 void rt2800mmio_txstatus_tasklet(unsigned long data)
