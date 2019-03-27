@@ -94,8 +94,9 @@ static vm_fault_t map_afu_irq(struct vm_area_struct *vma, unsigned long address,
 		u64 offset, struct ocxl_context *ctx)
 {
 	u64 trigger_addr;
+	int irq_id = ocxl_irq_offset_to_id(ctx, offset);
 
-	trigger_addr = ocxl_afu_irq_get_addr(ctx, offset);
+	trigger_addr = ocxl_afu_irq_get_addr(ctx, irq_id);
 	if (!trigger_addr)
 		return VM_FAULT_SIGBUS;
 
@@ -155,12 +156,14 @@ static const struct vm_operations_struct ocxl_vmops = {
 static int check_mmap_afu_irq(struct ocxl_context *ctx,
 			struct vm_area_struct *vma)
 {
+	int irq_id = ocxl_irq_offset_to_id(ctx, vma->vm_pgoff << PAGE_SHIFT);
+
 	/* only one page */
 	if (vma_pages(vma) != 1)
 		return -EINVAL;
 
 	/* check offset validty */
-	if (!ocxl_afu_irq_get_addr(ctx, vma->vm_pgoff << PAGE_SHIFT))
+	if (!ocxl_afu_irq_get_addr(ctx, irq_id))
 		return -EINVAL;
 
 	/*

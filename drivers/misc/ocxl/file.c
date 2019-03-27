@@ -188,6 +188,7 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 {
 	struct ocxl_context *ctx = file->private_data;
 	struct ocxl_ioctl_irq_fd irq_fd;
+	int irq_id;
 	u64 irq_offset;
 	long rc;
 	bool closed;
@@ -209,12 +210,13 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case OCXL_IOCTL_IRQ_ALLOC:
-		rc = ocxl_afu_irq_alloc(ctx, &irq_offset);
+		rc = ocxl_afu_irq_alloc(ctx, &irq_id);
 		if (!rc) {
+			irq_offset = ocxl_irq_id_to_offset(ctx, irq_id);
 			rc = copy_to_user((u64 __user *) args, &irq_offset,
 					sizeof(irq_offset));
 			if (rc) {
-				ocxl_afu_irq_free(ctx, irq_offset);
+				ocxl_afu_irq_free(ctx, irq_id);
 				return -EFAULT;
 			}
 		}
@@ -225,7 +227,8 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 				sizeof(irq_offset));
 		if (rc)
 			return -EFAULT;
-		rc = ocxl_afu_irq_free(ctx, irq_offset);
+		irq_id = ocxl_irq_offset_to_id(ctx, irq_offset);
+		rc = ocxl_afu_irq_free(ctx, irq_id);
 		break;
 
 	case OCXL_IOCTL_IRQ_SET_FD:
@@ -235,8 +238,8 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 		if (irq_fd.reserved)
 			return -EINVAL;
-		rc = ocxl_afu_irq_set_fd(ctx, irq_fd.irq_offset,
-					irq_fd.eventfd);
+		irq_id = ocxl_irq_offset_to_id(ctx, irq_fd.irq_offset);
+		rc = ocxl_afu_irq_set_fd(ctx, irq_id, irq_fd.eventfd);
 		break;
 
 	case OCXL_IOCTL_GET_METADATA:

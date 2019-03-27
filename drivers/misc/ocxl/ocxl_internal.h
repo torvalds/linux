@@ -137,11 +137,13 @@ void ocxl_context_detach_all(struct ocxl_afu *afu);
 int ocxl_sysfs_register_afu(struct ocxl_file_info *info);
 void ocxl_sysfs_unregister_afu(struct ocxl_file_info *info);
 
-int ocxl_afu_irq_alloc(struct ocxl_context *ctx, u64 *irq_offset);
-int ocxl_afu_irq_free(struct ocxl_context *ctx, u64 irq_offset);
+int ocxl_irq_offset_to_id(struct ocxl_context *ctx, u64 offset);
+u64 ocxl_irq_id_to_offset(struct ocxl_context *ctx, int irq_id);
+int ocxl_afu_irq_alloc(struct ocxl_context *ctx, int *irq_id);
+int ocxl_afu_irq_free(struct ocxl_context *ctx, int irq_id);
 void ocxl_afu_irq_free_all(struct ocxl_context *ctx);
-int ocxl_afu_irq_set_fd(struct ocxl_context *ctx, u64 irq_offset,
+int ocxl_afu_irq_set_fd(struct ocxl_context *ctx, int irq_id,
 			int eventfd);
-u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, u64 irq_offset);
+u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, int irq_id);
 
 #endif /* _OCXL_INTERNAL_H_ */
