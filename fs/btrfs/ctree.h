@@ -1149,12 +1149,6 @@ struct btrfs_fs_info {
 	struct mutex unused_bg_unpin_mutex;
 	struct mutex delete_unused_bgs_mutex;
 
-	/*
-	 * Chunks that can't be freed yet (under a trim/discard operation)
-	 * and will be latter freed. Protected by fs_info->chunk_mutex.
-	 */
-	struct list_head pinned_chunks;
-
 	/* Cached block sizes */
 	u32 nodesize;
 	u32 sectorsize;

@@ -50,14 +50,6 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction)
 			btrfs_err(transaction->fs_info,
 				  "pending csums is %llu",
 				  transaction->delayed_refs.pending_csums);
-		while (!list_empty(&transaction->pending_chunks)) {
-			struct extent_map *em;
-
-			em = list_first_entry(&transaction->pending_chunks,
-					      struct extent_map, list);
-			list_del_init(&em->list);
-			free_extent_map(em);
-		}
 		/*
 		 * If any block groups are found in ->deleted_bgs then it's
 		 * because the transaction was aborted and a commit did not
@@ -235,7 +227,6 @@ loop:
 	spin_lock_init(&cur_trans->delayed_refs.lock);
 
 	INIT_LIST_HEAD(&cur_trans->pending_snapshots);
-	INIT_LIST_HEAD(&cur_trans->pending_chunks);
 	INIT_LIST_HEAD(&cur_trans->dev_update_list);
 	INIT_LIST_HEAD(&cur_trans->switch_commits);
 	INIT_LIST_HEAD(&cur_trans->dirty_bgs);

@@ -133,6 +133,8 @@ struct btrfs_device {
 	/* Counter to record the change of device stats */
 	atomic_t dev_stats_ccnt;
 	atomic_t dev_stat_values[BTRFS_DEV_STAT_VALUES_MAX];
+
+	struct extent_io_tree alloc_state;
 };
 
 /*

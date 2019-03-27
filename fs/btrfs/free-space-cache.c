@@ -3366,10 +3366,6 @@ void btrfs_put_block_group_trimming(struct btrfs_block_group_cache *block_group)
 		em = lookup_extent_mapping(em_tree, block_group->key.objectid,
 					   1);
 		BUG_ON(!em); /* logic error, can't happen */
-		/*
-		 * remove_extent_mapping() will delete us from the pinned_chunks
-		 * list, which is protected by the chunk mutex.
-		 */
 		remove_extent_mapping(em_tree, em);
 		write_unlock(&em_tree->lock);
 		mutex_unlock(&fs_info->chunk_mutex);

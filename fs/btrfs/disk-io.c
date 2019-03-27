@@ -2774,8 +2774,6 @@ int open_ctree(struct super_block *sb,
 	init_waitqueue_head(&fs_info->async_submit_wait);
 	init_waitqueue_head(&fs_info->delayed_iputs_wait);
 
-	INIT_LIST_HEAD(&fs_info->pinned_chunks);
-
 	/* Usable values until the real ones are cached from the superblock */
 	fs_info->nodesize = 4096;
 	fs_info->sectorsize = 4096;
@@ -4050,15 +4048,6 @@ void close_ctree(struct btrfs_fs_info *fs_info)
 
 	btrfs_free_stripe_hash_table(fs_info);
 	btrfs_free_ref_cache(fs_info);
-
-	while (!list_empty(&fs_info->pinned_chunks)) {
-		struct extent_map *em;
-
-		em = list_first_entry(&fs_info->pinned_chunks,
-				      struct extent_map, list);
-		list_del_init(&em->list);
-		free_extent_map(em);
-	}
 }
 
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,

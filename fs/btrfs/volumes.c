@@ -336,6 +336,7 @@ void btrfs_free_device(struct btrfs_device *device)
 {
 	WARN_ON(!list_empty(&device->post_commit_list));
 	rcu_string_free(device->name);
+	extent_io_tree_release(&device->alloc_state);
 	bio_put(device->flush_bio);
 	kfree(device);
 }
@@ -412,6 +413,7 @@ static struct btrfs_device *__alloc_device(void)
 	btrfs_device_data_ordered_init(dev);
 	INIT_RADIX_TREE(&dev->reada_zones, GFP_NOFS & ~__GFP_DIRECT_RECLAIM);
 	INIT_RADIX_TREE(&dev->reada_extents, GFP_NOFS & ~__GFP_DIRECT_RECLAIM);
+	extent_io_tree_init(NULL, &dev->alloc_state, 0, NULL);
 
 	return dev;
 }
@@ -1499,58 +1501,30 @@ error_bdev_put:
 	return device;
 }
 
-static int contains_pending_extent(struct btrfs_transaction *transaction,
-				   struct btrfs_device *device,
-				   u64 *start, u64 len)
+/*
+ * Try to find a chunk that intersects [start, start + len] range and when one
+ * such is found, record the end of it in *start
+ */
+#define in_range(b, first, len)        ((b) >= (first) && (b) < (first) + (len))
+static bool contains_pending_extent(struct btrfs_device *device, u64 *start,
+				    u64 len)
 {
-	struct btrfs_fs_info *fs_info = device->fs_info;
-	struct extent_map *em;
-	struct list_head *search_list = &fs_info->pinned_chunks;
-	int ret = 0;
-	u64 physical_start = *start;
+	u64 physical_start, physical_end;
 
-	if (transaction)
-		search_list = &transaction->pending_chunks;
-again:
-	list_for_each_entry(em, search_list, list) {
-		struct map_lookup *map;
-		int i;
+	lockdep_assert_held(&device->fs_info->chunk_mutex);
 
-		map = em->map_lookup;
-		for (i = 0; i < map->num_stripes; i++) {
-			u64 end;
+	if (!find_first_extent_bit(&device->alloc_state, *start,
+				   &physical_start, &physical_end,
+				   CHUNK_ALLOCATED, NULL)) {
 
-			if (map->stripes[i].dev != device)
-				continue;
-			if (map->stripes[i].physical >= physical_start + len ||
-			    map->stripes[i].physical + em->orig_block_len <=
-			    physical_start)
-				continue;
-			/*
-			 * Make sure that while processing the pinned list we do
-			 * not override our *start with a lower value, because
-			 * we can have pinned chunks that fall within this
-			 * device hole and that have lower physical addresses
-			 * than the pending chunks we processed before. If we
-			 * do not take this special care we can end up getting
-			 * 2 pending chunks that start at the same physical
-			 * device offsets because the end offset of a pinned
-			 * chunk can be equal to the start offset of some
-			 * pending chunk.
-			 */
-			end = map->stripes[i].physical + em->orig_block_len;
-			if (end > *start) {
-				*start = end;
-				ret = 1;
-			}
+		if (in_range(physical_start, *start, len) ||
+		    in_range(*start, physical_start,
+			     physical_end - physical_start)) {
+			*start = physical_end + 1;
+			return true;
 		}
 	}
-	if (search_list != &fs_info->pinned_chunks) {
-		search_list = &fs_info->pinned_chunks;
-		goto again;
-	}
-
-	return ret;
+	return false;
 }
 
 
@@ -1661,15 +1635,12 @@ again:
 			 * Have to check before we set max_hole_start, otherwise
 			 * we could end up sending back this offset anyway.
 			 */
-			if (contains_pending_extent(transaction, device,
-						    &search_start,
+			if (contains_pending_extent(device, &search_start,
 						    hole_size)) {
-				if (key.offset >= search_start) {
+				if (key.offset >= search_start)
 					hole_size = key.offset - search_start;
-				} else {
-					WARN_ON_ONCE(1);
+				else
 					hole_size = 0;
-				}
 			}
 
 			if (hole_size > max_hole_size) {
@@ -1710,8 +1681,7 @@ next:
 	if (search_end > search_start) {
 		hole_size = search_end - search_start;
 
-		if (contains_pending_extent(transaction, device, &search_start,
-					    hole_size)) {
+		if (contains_pending_extent(device, &search_start, hole_size)) {
 			btrfs_release_path(path);
 			goto again;
 		}
@@ -4756,7 +4726,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	 * in-memory chunks are synced to disk so that the loop below sees them
 	 * and relocates them accordingly.
 	 */
-	if (contains_pending_extent(trans->transaction, device, &start, diff)) {
+	if (contains_pending_extent(device, &start, diff)) {
 		mutex_unlock(&fs_info->chunk_mutex);
 		ret = btrfs_commit_transaction(trans);
 		if (ret)
@@ -5189,9 +5159,6 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		free_extent_map(em);
 		goto error;
 	}
-
-	list_add_tail(&em->list, &trans->transaction->pending_chunks);
-	refcount_inc(&em->refs);
 	write_unlock(&em_tree->lock);
 
 	ret = btrfs_make_block_group(trans, 0, type, start, chunk_size);
@@ -5223,8 +5190,6 @@ error_del_extent:
 	/* One for our allocation */
 	free_extent_map(em);
 	/* One for the tree reference */
-	free_extent_map(em);
-	/* One for the pending_chunks list reference */
 	free_extent_map(em);
 error:
 	kfree(devices_info);

@@ -10946,10 +10946,6 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	memcpy(&key, &block_group->key, sizeof(key));
 
 	mutex_lock(&fs_info->chunk_mutex);
-	if (!list_empty(&em->list)) {
-		/* We're in the transaction->pending_chunks list. */
-		free_extent_map(em);
-	}
 	spin_lock(&block_group->lock);
 	block_group->removed = 1;
 	/*
@@ -10976,25 +10972,6 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	 * the transaction commit has completed.
 	 */
 	remove_em = (atomic_read(&block_group->trimming) == 0);
-	/*
-	 * Make sure a trimmer task always sees the em in the pinned_chunks list
-	 * if it sees block_group->removed == 1 (needs to lock block_group->lock
-	 * before checking block_group->removed).
-	 */
-	if (!remove_em) {
-		/*
-		 * Our em might be in trans->transaction->pending_chunks which
-		 * is protected by fs_info->chunk_mutex ([lock|unlock]_chunks),
-		 * and so is the fs_info->pinned_chunks list.
-		 *
-		 * So at this point we must be holding the chunk_mutex to avoid
-		 * any races with chunk allocation (more specifically at
-		 * volumes.c:contains_pending_extent()), to ensure it always
-		 * sees the em, either in the pending_chunks list or in the
-		 * pinned_chunks list.
-		 */
-		list_move_tail(&em->list, &fs_info->pinned_chunks);
-	}
 	spin_unlock(&block_group->lock);
 
 	if (remove_em) {
@@ -11002,11 +10979,6 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 
 		em_tree = &fs_info->mapping_tree.map_tree;
 		write_lock(&em_tree->lock);
-		/*
-		 * The em might be in the pending_chunks list, so make sure the
-		 * chunk mutex is locked, since remove_extent_mapping() will
-		 * delete us from that list.
-		 */
 		remove_extent_mapping(em_tree, em);
 		write_unlock(&em_tree->lock);
 		/* once for the tree */
