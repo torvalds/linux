@@ -553,7 +553,7 @@ struct smu_funcs
 	int (*set_fan_speed_percent)(struct smu_context *smu, uint32_t speed);
 	int (*set_fan_speed_rpm)(struct smu_context *smu, uint32_t speed);
 	int (*set_xgmi_pstate)(struct smu_context *smu, uint32_t pstate);
-
+	int (*gfx_off_control)(struct smu_context *smu, bool enable);
 };
 
 #define smu_init_microcode(smu) \
@@ -592,6 +592,9 @@ struct smu_funcs
 	((smu)->funcs->set_tool_table_location ? (smu)->funcs->set_tool_table_location((smu)) : 0)
 #define smu_notify_memory_pool_location(smu) \
 	((smu)->funcs->notify_memory_pool_location ? (smu)->funcs->notify_memory_pool_location((smu)) : 0)
+#define smu_gfx_off_control(smu, enable) \
+	((smu)->funcs->gfx_off_control ? (smu)->funcs->gfx_off_control((smu), (enable)) : 0)
+
 #define smu_write_watermarks_table(smu) \
 	((smu)->funcs->write_watermarks_table ? (smu)->funcs->write_watermarks_table((smu)) : 0)
 #define smu_set_last_dcef_min_deep_sleep_clk(smu) \

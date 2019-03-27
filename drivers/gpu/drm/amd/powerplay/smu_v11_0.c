@@ -1547,6 +1547,21 @@ smu_v11_0_set_watermarks_for_clock_ranges(struct smu_context *smu, struct
 	return ret;
 }
 
+static int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
+{
+	int ret = 0;
+
+	mutex_lock(&smu->mutex);
+	if (enable)
+		ret = smu_send_smc_msg(smu, SMU_MSG_AllowGfxOff);
+	else
+		ret = smu_send_smc_msg(smu, SMU_MSG_DisallowGfxOff);
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
+
 static int smu_v11_0_get_clock_ranges(struct smu_context *smu,
 				      uint32_t *clock,
 				      PPCLK_e clock_select,
@@ -1919,6 +1934,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.set_fan_speed_percent = smu_v11_0_set_fan_speed_percent,
 	.set_fan_speed_rpm = smu_v11_0_set_fan_speed_rpm,
 	.set_xgmi_pstate = smu_v11_0_set_xgmi_pstate,
+	.gfx_off_control = smu_v11_0_gfx_off_control,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

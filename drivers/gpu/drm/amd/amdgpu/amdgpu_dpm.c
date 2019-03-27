@@ -920,3 +920,23 @@ int amdgpu_dpm_get_mclk(struct amdgpu_device *adev, bool low)
 	else
 		return (adev)->powerplay.pp_funcs->get_mclk((adev)->powerplay.pp_handle, (low));
 }
+
+int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block_type, bool gate)
+{
+	int ret = 0;
+	bool swsmu = is_support_sw_smu(adev);
+
+	switch (block_type) {
+	case AMD_IP_BLOCK_TYPE_GFX:
+		if (swsmu)
+			ret = smu_gfx_off_control(&adev->smu, gate);
+		else
+			ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
+				(adev)->powerplay.pp_handle, block_type, gate));
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
