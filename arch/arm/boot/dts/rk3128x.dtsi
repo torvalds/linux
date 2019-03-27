@@ -14,7 +14,7 @@
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
-#include <rk322x-dram-default-timing.dtsi>
+#include "rk322x-dram-default-timing.dtsi"
 #include "skeleton.dtsi"
 
 / {
