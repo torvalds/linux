@@ -18,6 +18,11 @@ struct mvpp2_dbgfs_prs_entry {
 	struct mvpp2 *priv;
 };
 
+struct mvpp2_dbgfs_c2_entry {
+	int id;
+	struct mvpp2 *priv;
+};
+
 struct mvpp2_dbgfs_flow_entry {
 	int flow;
 	struct mvpp2 *priv;
@@ -36,6 +41,9 @@ struct mvpp2_dbgfs_port_flow_entry {
 struct mvpp2_dbgfs_entries {
 	/* Entries for Header Parser debug info */
 	struct mvpp2_dbgfs_prs_entry prs_entries[MVPP2_PRS_TCAM_SRAM_SIZE];
+
+	/* Entries for Classifier C2 engine debug info */
+	struct mvpp2_dbgfs_c2_entry c2_entries[MVPP22_CLS_C2_N_ENTRIES];
 
 	/* Entries for Classifier Flow Table debug info */
 	struct mvpp2_dbgfs_flow_tbl_entry flt_entries[MVPP2_CLS_FLOWS_TBL_SIZE];
@@ -182,11 +190,10 @@ DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_port_flow_engine);
 
 static int mvpp2_dbgfs_flow_c2_hits_show(struct seq_file *s, void *unused)
 {
-	struct mvpp2_port *port = s->private;
+	struct mvpp2_dbgfs_c2_entry *entry = s->private;
 	u32 hits;
 
-	hits = mvpp2_cls_c2_hit_count(port->priv,
-				      MVPP22_CLS_C2_RSS_ENTRY(port->id));
+	hits = mvpp2_cls_c2_hit_count(entry->priv, entry->id);
 
 	seq_printf(s, "%u\n", hits);
 
@@ -197,11 +204,11 @@ DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_c2_hits);
 
 static int mvpp2_dbgfs_flow_c2_rxq_show(struct seq_file *s, void *unused)
 {
-	struct mvpp2_port *port = s->private;
+	struct mvpp2_dbgfs_c2_entry *entry = s->private;
 	struct mvpp2_cls_c2_entry c2;
 	u8 qh, ql;
 
-	mvpp2_cls_c2_read(port->priv, MVPP22_CLS_C2_RSS_ENTRY(port->id), &c2);
+	mvpp2_cls_c2_read(entry->priv, entry->id, &c2);
 
 	qh = (c2.attr[0] >> MVPP22_CLS_C2_ATTR0_QHIGH_OFFS) &
 	     MVPP22_CLS_C2_ATTR0_QHIGH_MASK;
@@ -218,11 +225,11 @@ DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_c2_rxq);
 
 static int mvpp2_dbgfs_flow_c2_enable_show(struct seq_file *s, void *unused)
 {
-	struct mvpp2_port *port = s->private;
+	struct mvpp2_dbgfs_c2_entry *entry = s->private;
 	struct mvpp2_cls_c2_entry c2;
 	int enabled;
 
-	mvpp2_cls_c2_read(port->priv, MVPP22_CLS_C2_RSS_ENTRY(port->id), &c2);
+	mvpp2_cls_c2_read(entry->priv, entry->id, &c2);
 
 	enabled = !!(c2.attr[2] & MVPP22_CLS_C2_ATTR2_RSS_EN);
 
@@ -497,6 +504,7 @@ static int mvpp2_dbgfs_flow_entry_init(struct dentry *parent,
 		if (ret)
 			return ret;
 	}
+
 	return 0;
 }
 
@@ -579,6 +587,39 @@ static int mvpp2_dbgfs_prs_init(struct dentry *parent, struct mvpp2 *priv)
 	return 0;
 }
 
+static int mvpp2_dbgfs_c2_entry_init(struct dentry *parent,
+				     struct mvpp2 *priv, int id)
+{
+	struct mvpp2_dbgfs_c2_entry *entry;
+	struct dentry *c2_entry_dir;
+	char c2_entry_name[10];
+
+	if (id >= MVPP22_CLS_C2_N_ENTRIES)
+		return -EINVAL;
+
+	sprintf(c2_entry_name, "%03d", id);
+
+	c2_entry_dir = debugfs_create_dir(c2_entry_name, parent);
+	if (!c2_entry_dir)
+		return -ENOMEM;
+
+	entry = &priv->dbgfs_entries->c2_entries[id];
+
+	entry->id = id;
+	entry->priv = priv;
+
+	debugfs_create_file("hits", 0444, c2_entry_dir, entry,
+			    &mvpp2_dbgfs_flow_c2_hits_fops);
+
+	debugfs_create_file("default_rxq", 0444, c2_entry_dir, entry,
+			    &mvpp2_dbgfs_flow_c2_rxq_fops);
+
+	debugfs_create_file("rss_enable", 0444, c2_entry_dir, entry,
+			    &mvpp2_dbgfs_flow_c2_enable_fops);
+
+	return 0;
+}
+
 static int mvpp2_dbgfs_flow_tbl_entry_init(struct dentry *parent,
 					   struct mvpp2 *priv, int id)
 {
@@ -608,12 +649,22 @@ static int mvpp2_dbgfs_flow_tbl_entry_init(struct dentry *parent,
 
 static int mvpp2_dbgfs_cls_init(struct dentry *parent, struct mvpp2 *priv)
 {
-	struct dentry *cls_dir, *flow_tbl_dir;
+	struct dentry *cls_dir, *c2_dir, *flow_tbl_dir;
 	int i, ret;
 
 	cls_dir = debugfs_create_dir("classifier", parent);
 	if (!cls_dir)
 		return -ENOMEM;
+
+	c2_dir = debugfs_create_dir("c2", cls_dir);
+	if (!c2_dir)
+		return -ENOMEM;
+
+	for (i = 0; i < MVPP22_CLS_C2_N_ENTRIES; i++) {
+		ret = mvpp2_dbgfs_c2_entry_init(c2_dir, priv, i);
+		if (ret)
+			return ret;
+	}
 
 	flow_tbl_dir = debugfs_create_dir("flow_table", cls_dir);
 	if (!flow_tbl_dir)
@@ -645,15 +696,6 @@ static int mvpp2_dbgfs_port_init(struct dentry *parent,
 
 	debugfs_create_file("vid_filter", 0444, port_dir, port,
 			    &mvpp2_dbgfs_port_vid_fops);
-
-	debugfs_create_file("c2_hits", 0444, port_dir, port,
-			    &mvpp2_dbgfs_flow_c2_hits_fops);
-
-	debugfs_create_file("default_rxq", 0444, port_dir, port,
-			    &mvpp2_dbgfs_flow_c2_rxq_fops);
-
-	debugfs_create_file("rss_enable", 0444, port_dir, port,
-			    &mvpp2_dbgfs_flow_c2_enable_fops);
 
 	return 0;
 }
